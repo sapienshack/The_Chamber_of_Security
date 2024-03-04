@@ -12,7 +12,7 @@
         background-color: #f5f5f5;
     }
     .container {
-        max-width: 800px;
+        width: 75%;
         margin: 20px auto;
         padding: 20px;
         border: 1px solid #ddd;
@@ -102,7 +102,8 @@
 <body>
     <div class="container">
         <h1>SapiensHack Recon: Powering Discovery</h1>
-        <p>Attack Surface from the current directory (attack_surface.txt) will be loaded automatically.</p>
+        <p>Upload your "attack_surface.txt" file below:</p>
+        <input type="file" id="fileInput" accept=".txt">
         <div id="downloadContainerHTTPS" class="download-container"></div>
         <div id="tablesContainerHTTPS"></div>
         <div id="downloadContainerHTTP" class="download-container"></div>
@@ -111,95 +112,66 @@
 
     <script>
         // Function to display domains from attack_surface.txt
-        function displayDomainsFromAttackSurface() {
-            fetch('attack_surface.txt')
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Failed to load attack_surface.txt');
-                    }
-                    return response.text();
-                })
-                .then(text => {
-                    const lines = text.split('\n').filter(Boolean); // Split text into lines and remove empty lines
-                    const tablesContainerHTTP = document.getElementById('tablesContainerHTTP');
-                    const tablesContainerHTTPS = document.getElementById('tablesContainerHTTPS');
-                    const downloadContainerHTTP = document.getElementById('downloadContainerHTTP');
-                    const downloadContainerHTTPS = document.getElementById('downloadContainerHTTPS');
+        function displayDomainsFromAttackSurface(text) {
+            const lines = text.split('\n').filter(Boolean); // Split text into lines and remove empty lines
+            const tablesContainerHTTP = document.getElementById('tablesContainerHTTP');
+            const tablesContainerHTTPS = document.getElementById('tablesContainerHTTPS');
 
-                    // Clear existing tables and download containers
-                    tablesContainerHTTP.innerHTML = '';
-                    tablesContainerHTTPS.innerHTML = '';
-                    downloadContainerHTTP.innerHTML = '';
-                    downloadContainerHTTPS.innerHTML = '';
+            // Clear existing tables
+            tablesContainerHTTP.innerHTML = '';
+            tablesContainerHTTPS.innerHTML = '';
 
-                    // Group domains by protocol (HTTPS/HTTP)
-                    const domainsByProtocol = { 'https': [], 'http': [] };
-                    const domainSet = new Set(); // Set to store unique domains
+            // Group domains by protocol (HTTPS/HTTP)
+            const domainsByProtocol = { 'https': [], 'http': [] };
+            const domainSet = new Set(); // Set to store unique domains
 
-                    lines.forEach(line => {
-                        const [domain, statusCode] = line.split('|');
-                        if (!domainSet.has(domain)) {
-                            domainSet.add(domain);
-                            const protocol = domain.startsWith('https') ? 'https' : 'http';
-                            domainsByProtocol[protocol].push({ domain, statusCode: parseInt(statusCode, 10) });
-                        }
-                    });
+            lines.forEach(line => {
+                const [domain, statusCode] = line.split('|');
+                if (!domainSet.has(domain)) {
+                    domainSet.add(domain);
+                    const protocol = domain.startsWith('https') ? 'https' : 'http';
+                    domainsByProtocol[protocol].push({ domain, statusCode: parseInt(statusCode, 10) });
+                }
+            });
 
-                    // Create tables and download options for each protocol
-                    Object.entries(domainsByProtocol).forEach(([protocol, domains]) => {
-                        domains.sort((a, b) => a.statusCode - b.statusCode); // Sort domains by status code in ascending order
-                        const tablesContainer = protocol === 'https' ? tablesContainerHTTPS : tablesContainerHTTP;
-                        const downloadContainer = protocol === 'https' ? downloadContainerHTTPS : downloadContainerHTTP;
+            // Create tables for each protocol
+            Object.entries(domainsByProtocol).forEach(([protocol, domains]) => {
+                domains.sort((a, b) => a.statusCode - b.statusCode); // Sort domains by status code in ascending order
+                const tablesContainer = protocol === 'https' ? tablesContainerHTTPS : tablesContainerHTTP;
 
-                        const table = document.createElement('table');
-                        table.innerHTML = `<tr><th>Rank</th><th>Domain</th><th>Status Code</th></tr>`;
-                        tablesContainer.appendChild(table);
-                        domains.forEach(({ domain, statusCode }, index) => {
-                            const row = table.insertRow();
-                            row.classList.add(`status-${statusCode}`); // Add class based on status code
-                            const cell0 = row.insertCell();
-                            const cell1 = row.insertCell();
-                            const cell2 = row.insertCell();
-                            const anchor = document.createElement('a');
-                            anchor.textContent = domain;
-                            anchor.href = domain; // Assuming the domain is a valid URL
-                            anchor.target = '_blank'; // Open link in new tab
-                            cell0.textContent = index + 1;
-                            cell1.appendChild(anchor);
-                            cell2.textContent = statusCode;
-                        });
-
-                        const statusCodes = [...new Set(domains.map(domain => domain.statusCode))]; // Get unique status codes
-                        const dropdown = document.createElement('select');
-                        dropdown.classList.add('download-dropdown');
-                        dropdown.innerHTML = statusCodes.map(statusCode => `<option value="${statusCode}">Download URLs with Status ${statusCode}</option>`).join('');
-                        downloadContainer.appendChild(dropdown);
-
-                        const downloadBtn = document.createElement('button');
-                        downloadBtn.classList.add('download-btn');
-                        downloadBtn.textContent = `Download Selected (${protocol.toUpperCase()})`;
-                        downloadBtn.addEventListener('click', () => {
-                            const selectedOptions = Array.from(dropdown.options).filter(option => option.selected).map(option => option.value);
-                            const urlsToDownload = lines.filter(line => selectedOptions.includes(line.split('|')[1])).map(line => line.split('|')[0]);
-                            const blob = new Blob([urlsToDownload.join('\n')], { type: 'text/plain' });
-                            const url = URL.createObjectURL(blob);
-                            const a = document.createElement('a');
-                            a.href = url;
-                            a.download = `${protocol}_selected_urls.txt`;
-                            document.body.appendChild(a);
-                            a.click();
-                            document.body.removeChild(a);
-                        });
-                        downloadContainer.appendChild(downloadBtn);
-                    });
-                })
-                .catch(error => {
-                    console.error('Error:', error.message);
+                const table = document.createElement('table');
+                table.innerHTML = `<tr><th>Rank</th><th>Domain</th><th>Status Code</th></tr>`;
+                tablesContainer.appendChild(table);
+                domains.forEach(({ domain, statusCode }, index) => {
+                    const row = table.insertRow();
+                    row.classList.add(`status-${statusCode}`); // Add class based on status code
+                    const cell0 = row.insertCell();
+                    const cell1 = row.insertCell();
+                    const cell2 = row.insertCell();
+                    const anchor = document.createElement('a');
+                    anchor.textContent = domain;
+                    anchor.href = domain; // Assuming the domain is a valid URL
+                    anchor.target = '_blank'; // Open link in new tab
+                    cell0.textContent = index + 1;
+                    cell1.appendChild(anchor);
+                    cell2.textContent = statusCode;
                 });
+            });
         }
 
-        // Load domains from attack_surface.txt when the page loads
-        window.addEventListener('DOMContentLoaded', displayDomainsFromAttackSurface);
+        // Function to handle file upload event
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const text = event.target.result;
+                displayDomainsFromAttackSurface(text);
+            };
+            reader.readAsText(file);
+        }
+
+        // Add event listener for file input change
+        document.getElementById('fileInput').addEventListener('change', handleFileUpload);
     </script>
 </body>
 </html>
