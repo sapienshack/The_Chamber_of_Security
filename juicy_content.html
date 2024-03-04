@@ -69,6 +69,34 @@
         .selected {
             background-color: lightgreen !important;
         }
+        .pagination {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .arrow {
+            display: inline-block;
+            margin: 0 10px;
+            font-size: 24px;
+            cursor: pointer;
+        }
+        .page-link {
+            display: inline-block;
+            margin: 0 5px;
+            padding: 5px 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .page-link:hover {
+            background-color: #f0f0f0;
+        }
+        .active {
+            background-color: #007bff;
+            color: #fff;
+        }
+        .top-pagination {
+            margin-bottom: 20px;
+        }
     </style>
 </head>
 <body>
@@ -79,6 +107,8 @@
             <label for="fileInput">Choose File</label>
         </div>
         <button onclick="checkUrls()">Check URLs</button>
+        <div class="top-pagination" id="topPagination">
+        </div>
         <table id="resultsTable">
             <thead>
                 <tr>
@@ -89,9 +119,15 @@
             <tbody id="resultsBody">
             </tbody>
         </table>
+        <div class="pagination" id="bottomPagination">
+        </div>
     </div>
 
     <script>
+        var currentPage = 1;
+        var urlsPerPage = 10;
+        var totalUrls = 0;
+
         function checkUrls() {
             var fileInput = document.getElementById('fileInput');
             var resultsTable = document.getElementById('resultsBody');
@@ -106,12 +142,19 @@
             var reader = new FileReader();
             reader.onload = function(event) {
                 var urls = event.target.result.split('\n').map(url => url.trim());
-                urls.forEach((url, index) => {
+                totalUrls = urls.length;
+                var startIndex = (currentPage - 1) * urlsPerPage;
+                var endIndex = Math.min(startIndex + urlsPerPage, totalUrls);
+                var urlsToShow = urls.slice(startIndex, endIndex);
+
+                urlsToShow.forEach((url, index) => {
                     if (url !== '') {
-                        var row = '<tr id="row_' + index + '"><td>' + (index + 1) + '</td><td><a href="#" onclick="openLink(event, \'' + url + '\')">' + url + '</a></td></tr>';
+                        var row = '<tr id="row_' + index + '"><td>' + (startIndex + index + 1) + '</td><td><a href="#" onclick="openLink(event, \'' + url + '\')">' + url + '</a></td></tr>';
                         resultsTable.insertAdjacentHTML('beforeend', row);
                     }
                 });
+
+                renderPagination();
             };
             reader.readAsText(file);
         }
@@ -123,6 +166,89 @@
             if (rowId) {
                 document.getElementById(rowId).classList.add('selected');
             }
+        }
+
+        function renderPagination() {
+            var totalPages = Math.ceil(totalUrls / urlsPerPage);
+            var topPaginationDiv = document.getElementById('topPagination');
+            var bottomPaginationDiv = document.getElementById('bottomPagination');
+            topPaginationDiv.innerHTML = '';
+            bottomPaginationDiv.innerHTML = '';
+
+            var arrowLeft = document.createElement('span');
+            arrowLeft.textContent = '◄';
+            arrowLeft.classList.add('arrow');
+            arrowLeft.onclick = function() {
+                if (currentPage > 1) {
+                    currentPage--;
+                    checkUrls();
+                }
+            };
+            topPaginationDiv.appendChild(arrowLeft);
+
+            var startPage = Math.max(1, currentPage - 2);
+            var endPage = Math.min(totalPages, currentPage + 2);
+
+            if (startPage > 1) {
+                var firstPageLink = document.createElement('span');
+                firstPageLink.textContent = 1;
+                firstPageLink.classList.add('page-link');
+                firstPageLink.onclick = function() {
+                    currentPage = 1;
+                    checkUrls();
+                };
+                topPaginationDiv.appendChild(firstPageLink);
+                if (startPage > 2) {
+                    var ellipsis = document.createElement('span');
+                    ellipsis.textContent = '...';
+                    topPaginationDiv.appendChild(ellipsis);
+                }
+            }
+
+            for (var i = startPage; i <= endPage; i++) {
+                var pageLink = document.createElement('span');
+                pageLink.textContent = i;
+                pageLink.classList.add('page-link');
+                if (i === currentPage) {
+                    pageLink.classList.add('active');
+                }
+                pageLink.onclick = function() {
+                    currentPage = parseInt(this.textContent);
+                    checkUrls();
+                };
+                topPaginationDiv.appendChild(pageLink);
+                bottomPaginationDiv.appendChild(pageLink.cloneNode(true));
+            }
+
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) {
+                    var ellipsis = document.createElement('span');
+                    ellipsis.textContent = '...';
+                    topPaginationDiv.appendChild(ellipsis);
+                    bottomPaginationDiv.appendChild(ellipsis.cloneNode(true));
+                }
+                var lastPageLink = document.createElement('span');
+                lastPageLink.textContent = totalPages;
+                lastPageLink.classList.add('page-link');
+                lastPageLink.onclick = function() {
+                    currentPage = totalPages;
+                    checkUrls();
+                };
+                topPaginationDiv.appendChild(lastPageLink);
+                bottomPaginationDiv.appendChild(lastPageLink.cloneNode(true));
+            }
+
+            var arrowRight = document.createElement('span');
+            arrowRight.textContent = '►';
+            arrowRight.classList.add('arrow');
+            arrowRight.onclick = function() {
+                if (currentPage < totalPages) {
+                    currentPage++;
+                    checkUrls();
+                }
+            };
+            topPaginationDiv.appendChild(arrowRight);
+            bottomPaginationDiv.appendChild(arrowRight.cloneNode(true));
         }
     </script>
 </body>
