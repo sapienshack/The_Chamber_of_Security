@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SapiensHack Recon: Powering Discovery</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #f5f5f5;
+    }
+    .container {
+        max-width: 800px;
+        margin: 20px auto;
+        padding: 20px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        background-color: #fff;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+    h1 {
+        margin-top: 0;
+        margin-bottom: 20px;
+        text-align: center;
+        font-size: 24px;
+        color: #333;
+    }
+    p {
+        margin-top: 5px;
+        margin-bottom: 20px;
+        color: #666;
+    }
+    .download-container {
+        margin-bottom: 20px;
+        text-align: center;
+    }
+    .download-dropdown {
+        margin-bottom: 10px;
+        padding: 8px 16px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        background-color: #fff;
+        font-size: 14px;
+        cursor: pointer;
+    }
+    .download-dropdown:focus {
+        outline: none;
+    }
+    .download-btn {
+        padding: 8px 16px;
+        background-color: #007bff;
+        color: #fff;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+    }
+    .download-btn:hover {
+        background-color: #0056b3;
+    }
+    .download-btn img {
+        vertical-align: middle;
+        margin-right: 5px;
+    }
+    table {
+        border-collapse: collapse;
+        width: 100%;
+        margin-bottom: 20px;
+        box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+    }
+    th, td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+    }
+    th {
+        background-color: #f2f2f2;
+    }
+    .status-200 {
+        background-color: #d6f5d6; /* Light green */
+    }
+    .status-403 {
+        background-color: #f5d6d6; /* Light red */
+    }
+    .status-404 {
+        background-color: #f5f5d6; /* Light yellow */
+    }
+    .status-500 {
+        background-color: #f5f5f5; /* Light gray */
+    }
+    a {
+        color: #007bff;
+        text-decoration: none;
+    }
+    a:hover {
+        text-decoration: underline;
+    }
+</style>
+</head>
+<body>
+    <div class="container">
+        <h1>SapiensHack Recon: Powering Discovery</h1>
+        <p>Attack Surface from the current directory (attack_surface.txt) will be loaded automatically.</p>
+        <div id="downloadContainerHTTPS" class="download-container"></div>
+        <div id="tablesContainerHTTPS"></div>
+        <div id="downloadContainerHTTP" class="download-container"></div>
+        <div id="tablesContainerHTTP"></div>
+    </div>
+
+    <script>
+        // Function to display domains from attack_surface.txt
+        function displayDomainsFromAttackSurface() {
+            fetch('attack_surface.txt')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to load attack_surface.txt');
+                    }
+                    return response.text();
+                })
+                .then(text => {
+                    const lines = text.split('\n').filter(Boolean); // Split text into lines and remove empty lines
+                    const tablesContainerHTTP = document.getElementById('tablesContainerHTTP');
+                    const tablesContainerHTTPS = document.getElementById('tablesContainerHTTPS');
+                    const downloadContainerHTTP = document.getElementById('downloadContainerHTTP');
+                    const downloadContainerHTTPS = document.getElementById('downloadContainerHTTPS');
+
+                    // Clear existing tables and download containers
+                    tablesContainerHTTP.innerHTML = '';
+                    tablesContainerHTTPS.innerHTML = '';
+                    downloadContainerHTTP.innerHTML = '';
+                    downloadContainerHTTPS.innerHTML = '';
+
+                    // Group domains by protocol (HTTPS/HTTP)
+                    const domainsByProtocol = { 'https': [], 'http': [] };
+                    const domainSet = new Set(); // Set to store unique domains
+
+                    lines.forEach(line => {
+                        const [domain, statusCode] = line.split('|');
+                        if (!domainSet.has(domain)) {
+                            domainSet.add(domain);
+                            const protocol = domain.startsWith('https') ? 'https' : 'http';
+                            domainsByProtocol[protocol].push({ domain, statusCode: parseInt(statusCode, 10) });
+                        }
+                    });
+
+                    // Create tables and download options for each protocol
+                    Object.entries(domainsByProtocol).forEach(([protocol, domains]) => {
+                        domains.sort((a, b) => a.statusCode - b.statusCode); // Sort domains by status code in ascending order
+                        const tablesContainer = protocol === 'https' ? tablesContainerHTTPS : tablesContainerHTTP;
+                        const downloadContainer = protocol === 'https' ? downloadContainerHTTPS : downloadContainerHTTP;
+
+                        const table = document.createElement('table');
+                        table.innerHTML = `<tr><th>Rank</th><th>Domain</th><th>Status Code</th></tr>`;
+                        tablesContainer.appendChild(table);
+                        domains.forEach(({ domain, statusCode }, index) => {
+                            const row = table.insertRow();
+                            row.classList.add(`status-${statusCode}`); // Add class based on status code
+                            const cell0 = row.insertCell();
+                            const cell1 = row.insertCell();
+                            const cell2 = row.insertCell();
+                            const anchor = document.createElement('a');
+                            anchor.textContent = domain;
+                            anchor.href = domain; // Assuming the domain is a valid URL
+                            anchor.target = '_blank'; // Open link in new tab
+                            cell0.textContent = index + 1;
+                            cell1.appendChild(anchor);
+                            cell2.textContent = statusCode;
+                        });
+
+                        const statusCodes = [...new Set(domains.map(domain => domain.statusCode))]; // Get unique status codes
+                        const dropdown = document.createElement('select');
+                        dropdown.classList.add('download-dropdown');
+                        dropdown.innerHTML = statusCodes.map(statusCode => `<option value="${statusCode}">Download URLs with Status ${statusCode}</option>`).join('');
+                        downloadContainer.appendChild(dropdown);
+
+                        const downloadBtn = document.createElement('button');
+                        downloadBtn.classList.add('download-btn');
+                        downloadBtn.textContent = `Download Selected (${protocol.toUpperCase()})`;
+                        downloadBtn.addEventListener('click', () => {
+                            const selectedOptions = Array.from(dropdown.options).filter(option => option.selected).map(option => option.value);
+                            const urlsToDownload = lines.filter(line => selectedOptions.includes(line.split('|')[1])).map(line => line.split('|')[0]);
+                            const blob = new Blob([urlsToDownload.join('\n')], { type: 'text/plain' });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `${protocol}_selected_urls.txt`;
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                        });
+                        downloadContainer.appendChild(downloadBtn);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error:', error.message);
+                });
+        }
+
+        // Load domains from attack_surface.txt when the page loads
+        window.addEventListener('DOMContentLoaded', displayDomainsFromAttackSurface);
+    </script>
+</body>
+</html>
