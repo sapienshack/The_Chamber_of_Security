@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>URL Status Checker</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f8f9fa;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            width: 80%; /* 80% of screen width */
+            margin: 20px auto; /* Center the container */
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            overflow-x: auto; /* Add horizontal scrolling if needed */
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        .file-upload {
+            margin-bottom: 20px;
+        }
+        .file-upload input[type="file"] {
+            display: none;
+        }
+        .file-upload label {
+            background-color: #007bff;
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .file-upload label:hover {
+            background-color: #0056b3;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        th, td {
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+            text-align: left;
+            word-wrap: break-word; /* Added for word-wrap */
+        }
+        th:first-child, td:first-child {
+            width: 10%;
+        }
+        th:nth-child(2), td:nth-child(2) {
+            width: 90%;
+        }
+        a {
+            color: #007bff;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        .selected {
+            background-color: lightgreen !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>URL Status Checker</h1>
+        <div class="file-upload">
+            <input type="file" id="fileInput" accept=".txt" />
+            <label for="fileInput">Choose File</label>
+        </div>
+        <button onclick="checkUrls()">Check URLs</button>
+        <table id="resultsTable">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>URL</th>
+                </tr>
+            </thead>
+            <tbody id="resultsBody">
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        function checkUrls() {
+            var fileInput = document.getElementById('fileInput');
+            var resultsTable = document.getElementById('resultsBody');
+            resultsTable.innerHTML = ''; // Clear previous results
+
+            var file = fileInput.files[0];
+            if (!file) {
+                alert('Please select a file.');
+                return;
+            }
+
+            var reader = new FileReader();
+            reader.onload = function(event) {
+                var urls = event.target.result.split('\n').map(url => url.trim());
+                urls.forEach((url, index) => {
+                    if (url !== '') {
+                        var row = '<tr id="row_' + index + '"><td>' + (index + 1) + '</td><td><a href="#" onclick="openLink(event, \'' + url + '\')">' + url + '</a></td></tr>';
+                        resultsTable.insertAdjacentHTML('beforeend', row);
+                    }
+                });
+            };
+            reader.readAsText(file);
+        }
+
+        function openLink(event, url) {
+            event.preventDefault();
+            window.open(url, '_blank');
+            var rowId = event.target.parentNode.parentNode.id;
+            if (rowId) {
+                document.getElementById(rowId).classList.add('selected');
+            }
+        }
+    </script>
+</body>
+</html>
