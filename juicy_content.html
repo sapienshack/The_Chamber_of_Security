@@ -57,7 +57,10 @@
             width: 10%;
         }
         th:nth-child(2), td:nth-child(2) {
-            width: 90%;
+            width: 80%;
+        }
+        th:nth-child(3), td:nth-child(3) {
+            width: 10%;
         }
         a {
             color: #007bff;
@@ -97,42 +100,66 @@
         .top-pagination {
             margin-bottom: 20px;
         }
+        .version {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 12px;
+            color: #666;
+        }
+        .filter-container {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .filter-container label {
+            margin-right: 10px;
+        }
+        .filter-container select {
+            padding: 5px;
+            border-radius: 4px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>URL Status Checker</h1>
+        <div class="version">Version: 1.6</div>
+        <div class="filter-container">
+            <label for="domainFilter">Filter by Domain:</label>
+            <select id="domainFilter" onchange="applyDomainFilter()">
+                <option value="all">All Domains</option>
+            </select>
+        </div>
         <div class="file-upload">
             <input type="file" id="fileInput" accept=".txt" />
             <label for="fileInput">Choose File</label>
         </div>
-        <button onclick="checkUrls()">Check URLs</button>
-        <div class="top-pagination" id="topPagination">
-        </div>
+        <button onclick="loadUrls()">Check URLs</button>
+        <div class="top-pagination" id="topPagination"></div>
         <table id="resultsTable">
             <thead>
                 <tr>
                     <th>#</th>
                     <th>URL</th>
+                    <th>Status</th>
                 </tr>
             </thead>
-            <tbody id="resultsBody">
-            </tbody>
+            <tbody id="resultsBody"></tbody>
         </table>
-        <div class="pagination" id="bottomPagination">
-        </div>
+        <div class="pagination" id="bottomPagination"></div>
     </div>
 
     <script>
         var currentPage = 1;
         var urlsPerPage = 10;
         var totalUrls = 0;
+        var filteredUrls = [];
+        var uniqueDomains = [];
 
-        function checkUrls() {
+        function loadUrls() {
             var fileInput = document.getElementById('fileInput');
-            var resultsTable = document.getElementById('resultsBody');
-            resultsTable.innerHTML = ''; // Clear previous results
-
             var file = fileInput.files[0];
             if (!file) {
                 alert('Please select a file.');
@@ -141,22 +168,61 @@
 
             var reader = new FileReader();
             reader.onload = function(event) {
-                var urls = event.target.result.split('\n').map(url => url.trim());
+                var urls = event.target.result.split('\n').map(url => url.trim()).filter(url => url !== '');
                 totalUrls = urls.length;
-                var startIndex = (currentPage - 1) * urlsPerPage;
-                var endIndex = Math.min(startIndex + urlsPerPage, totalUrls);
-                var urlsToShow = urls.slice(startIndex, endIndex);
-
-                urlsToShow.forEach((url, index) => {
-                    if (url !== '') {
-                        var row = '<tr id="row_' + index + '"><td>' + (startIndex + index + 1) + '</td><td><a href="#" onclick="openLink(event, \'' + url + '\')">' + url + '</a></td></tr>';
-                        resultsTable.insertAdjacentHTML('beforeend', row);
-                    }
-                });
-
-                renderPagination();
+                filteredUrls = urls;
+                updateDomainFilter();
+                renderResults();
             };
             reader.readAsText(file);
+        }
+
+        function updateDomainFilter() {
+            uniqueDomains = filteredUrls.map(url => new URL(url).hostname).filter((value, index, self) => self.indexOf(value) === index);
+            var domainFilterSelect = document.getElementById('domainFilter');
+            domainFilterSelect.innerHTML = '<option value="all">All Domains</option>';
+            uniqueDomains.forEach(domain => {
+                var option = document.createElement('option');
+                option.value = domain;
+                option.textContent = domain;
+                domainFilterSelect.appendChild(option);
+            });
+        }
+
+        function applyDomainFilter() {
+            var domainFilterSelect = document.getElementById('domainFilter');
+            var selectedDomain = domainFilterSelect.value;
+            if (selectedDomain === 'all') {
+                filteredUrls = filteredUrls;
+            } else {
+                filteredUrls = filteredUrls.filter(url => new URL(url).hostname === selectedDomain);
+            }
+            renderResults();
+        }
+
+        function renderResults() {
+            var startIndex = (currentPage - 1) * urlsPerPage;
+            var endIndex = Math.min(startIndex + urlsPerPage, filteredUrls.length);
+            var urlsToShow = filteredUrls.slice(startIndex, endIndex);
+
+            var resultsTable = document.getElementById('resultsBody');
+            resultsTable.innerHTML = '';
+
+            urlsToShow.forEach((url, index) => {
+                var row = '<tr id="row_' + index + '"><td>' + (startIndex + index + 1) + '</td><td><a href="#" onclick="openLink(event, \'' + url + '\')">' + url + '</a></td><td id="status_' + index + '">Loading...</td></tr>';
+                resultsTable.insertAdjacentHTML('beforeend', row);
+                checkUrlStatus(url, index);
+            });
+
+            renderPagination();
+        }
+
+        function checkUrlStatus(url, index) {
+            // Simulating asynchronous status check
+            setTimeout(function() {
+                var statusCell = document.getElementById('status_' + index);
+                statusCell.textContent = '200 OK'; // Replace with actual status checking logic
+            }, 1000); // Simulated delay of 1 second
         }
 
         function openLink(event, url) {
@@ -169,7 +235,7 @@
         }
 
         function renderPagination() {
-            var totalPages = Math.ceil(totalUrls / urlsPerPage);
+            var totalPages = Math.ceil(filteredUrls.length / urlsPerPage);
             var topPaginationDiv = document.getElementById('topPagination');
             var bottomPaginationDiv = document.getElementById('bottomPagination');
             topPaginationDiv.innerHTML = '';
@@ -181,7 +247,7 @@
             arrowLeft.onclick = function() {
                 if (currentPage > 1) {
                     currentPage--;
-                    checkUrls();
+                    renderResults();
                 }
             };
             topPaginationDiv.appendChild(arrowLeft);
@@ -195,7 +261,7 @@
                 firstPageLink.classList.add('page-link');
                 firstPageLink.onclick = function() {
                     currentPage = 1;
-                    checkUrls();
+                    renderResults();
                 };
                 topPaginationDiv.appendChild(firstPageLink);
                 if (startPage > 2) {
@@ -214,7 +280,7 @@
                 }
                 pageLink.onclick = function() {
                     currentPage = parseInt(this.textContent);
-                    checkUrls();
+                    renderResults();
                 };
                 topPaginationDiv.appendChild(pageLink);
                 bottomPaginationDiv.appendChild(pageLink.cloneNode(true));
@@ -232,7 +298,7 @@
                 lastPageLink.classList.add('page-link');
                 lastPageLink.onclick = function() {
                     currentPage = totalPages;
-                    checkUrls();
+                    renderResults();
                 };
                 topPaginationDiv.appendChild(lastPageLink);
                 bottomPaginationDiv.appendChild(lastPageLink.cloneNode(true));
@@ -244,7 +310,7 @@
             arrowRight.onclick = function() {
                 if (currentPage < totalPages) {
                     currentPage++;
-                    checkUrls();
+                    renderResults();
                 }
             };
             topPaginationDiv.appendChild(arrowRight);
