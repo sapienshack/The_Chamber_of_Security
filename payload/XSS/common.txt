@@ -1,0 +1,2 @@
+<script>alert(1);</script>
+<img src=# onerrror=alert(1);>
